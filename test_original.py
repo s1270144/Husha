@@ -6,10 +6,11 @@ from math import degrees
 import math
 import cmath
 import os
+import pandas as pd
 
 import sys
 sys.path.append(os.path.abspath('yolov5'))
-from BladeCapture_yolo import BladeCapture
+from BladeCapture import BladeCapture
 
 # Grobal Preset
 PCOM = 100      # Command Position Area
@@ -96,9 +97,9 @@ def getHeight(c1,c2,c3,o1,o2,o3):
 #v1 = BladeCapture('C:\\Users\\yagu1\\Downloads\\frea\\frea\\20230207\\case01\\cam1.mp4',mvw,mvh,fr,size,offset,qnum,10240)
 #v2 = BladeCapture('C:\\Users\\yagu1\\Downloads\\frea\\frea\\20230207\\case01\\cam2.mp4',mvw,mvh,fr,size,offset,qnum,10200)
 #v3 = BladeCapture('C:\\Users\\yagu1\\Downloads\\frea\\frea\\20230207\\case01\\cam3.mp4',mvw,mvh,fr,size,offset,qnum,10238)
-v1 = BladeCapture('/home/iplslam/Husha/Data/onigajo/20230208/case01/cam1.mp4',mvw,mvh,fr,size,offset,qnum,10)
-v2 = BladeCapture('/home/iplslam/Husha/Data/onigajo/20230208/case01/cam2.mp4',mvw,mvh,fr,size,offset,qnum,10)
-v3 = BladeCapture('/home/iplslam/Husha/Data/onigajo/20230208/case01/cam3.mp4',mvw,mvh,fr,size,offset,qnum,10)
+v1 = BladeCapture('/home/iplslam/Husha/Data/movie/1/case01_trimmed_cam1.mp4',mvw,mvh,fr,size,offset,qnum,10)   # 変更箇所
+v2 = BladeCapture('/home/iplslam/Husha/Data/movie/1/case01_trimmed_cam2.mp4',mvw,mvh,fr,size,offset,qnum,10)   # 変更箇所
+v3 = BladeCapture('/home/iplslam/Husha/Data/movie/1/case01_trimmed_cam3.mp4',mvw,mvh,fr,size,offset,qnum,10)   # 変更箇所
 
 # Capture Error Handling
 if not v1.isOpened():
@@ -135,13 +136,17 @@ v3.start()
 cv2.namedWindow('frame', cv2.WINDOW_NORMAL)
 cv2.resizeWindow('frame', 1920, 1080)
 
-path = r'/home/iplslam/Husha/test1/Onigajo_case01_yolo.mp4'
+path = r'/home/iplslam/Husha/test/movie/test_case01_original.mp4'   # 変更箇所
 cap = cv2.VideoCapture(path)
 fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 writer = cv2.VideoWriter(path, fmt, 29.7, (mvw,mvh))
+cols_fps = ["throughput"]
+df_throughput = pd.DataFrame(columns=cols_fps)
+output_throughput = '/home/iplslam/Husha/test/original/case01/throughput_original.csv'     # 変更箇所
 
 while True:
     os.system('cls')
+    os.system('clear')
     # print("\033[9A", end="")
     # Cycle Time Calculation
     tim = time.time()
@@ -150,7 +155,7 @@ while True:
     ret2, frm2, t2 = v2.read()
     ret3, frm3, t3 = v3.read()
     tim2 = time.time()
-    print("Main: ReadTime:", tim2 - tim)
+    # print("Main: ReadTime:", tim2 - tim)
 
     # Error Handling
     if not ret1 or not ret2 or not ret3:
@@ -252,6 +257,9 @@ while True:
         v2.start()
         v3.start()
     # print("Main: Throughput - ",time.time()-tim)
+    new_record = [time.time()-tim]
+    df_throughput.loc[len(df_throughput)] = new_record
+    df_throughput.to_csv(output_throughput, index=False)
 
 v1.release()
 v2.release()

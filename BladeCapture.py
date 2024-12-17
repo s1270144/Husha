@@ -53,10 +53,14 @@ class BladeCapture():
     errorCntShrink = 0
     errorCnt = 0
     resizeFlag = True
+    cols = ["Tip_x", "Tip_y", "Frame_left", "Frame_top", "Frame_right", "Frame_bottom", 'cam']
+    df = pd.DataFrame(columns=cols)
+    output_dir = '/home/iplslam/Husha/test/original/case01'    # 変更箇所
+    # target = (0, 360)   
     # target = (1920,1080)
-    target = (0,0)
+    # target = (0,0)
     # target = (0, 1080)
-    # target = (1920, 0)
+    target = (1920, 0)
     # Image Buffers
     #img, img2, mask, out, cont, nimg, nmsk = None, None, None, None, None, None, None
 
@@ -100,18 +104,13 @@ class BladeCapture():
         # Class Inner Value Setting
         self._stopped = False
         self._mode = 1
-        # Output (Coordinate of Tips, Frame)
-        cols = ["Tip_x", "Tip_y", "Frame_left", "Frame_top", "Frame_right", "Frame_bottom"] # columns name
-        self.df = pd.DataFrame(columns=cols) # create dataFrame 
-        cols_fps = ["cam_fps"] # columns name
-        self.df_fps = pd.DataFrame(columns=cols_fps) # create dataFrame 
-        # base_directory = "/home/iplslam/Husha/Data/images/1"
-        base_directory = "/home/iplslam/Husha/Data/Graph/onigajo_case01"
-        # self.output_dir = os.path.abspath(os.path.join(base_directory, f'{os.path.splitext(os.path.basename(self.src))[0]}_{os.path.basename(os.path.dirname(self.src))}'))
-        self.output_dir = os.path.abspath(os.path.join(base_directory, f'{os.path.splitext(os.path.basename(self.src))[0]}_backandfront_4'))
-        # print(self.output_dir)
-        os.makedirs(self.output_dir, exist_ok=True)
-        self.frame_count = 0
+        # Output
+        self.output_dir = os.path.join(self.output_dir, f'{os.path.splitext(os.path.basename(self.src))[0]}')
+        self.output_whole_img_dir = os.path.abspath(os.path.join(self.output_dir, f'whole_images'), )
+        self.output_blade_img_dir = os.path.abspath(os.path.join(self.output_dir, f'blade_images'))
+        os.makedirs(self.output_whole_img_dir, exist_ok=True)
+        os.makedirs(self.output_blade_img_dir, exist_ok=True)
+        self.frame_cnt = 0
         # Grubcut Initialization
         self.gCutInit()
 
@@ -362,12 +361,6 @@ class BladeCapture():
                     self.tgtpnt = (x1 + contours[mi][i][0][0], y1 + contours[mi][i][0][1])
                 X.append(contours[mi][i][0][0])
                 Y.append(contours[mi][i][0][1])
-        
-        # write csv file
-        # print(f'Center_x: {self.tgtpnt[0]}, Center_y: {self.tgtpnt[1]}, xmin: {self.rectanP[0]}, ymin: {self.rectanP[1]}, xmax: {self.rectanP[2]}, ymax: {self.rectanP[3]}')
-        new_record = [self.tgtpnt[0], self.tgtpnt[1], self.rectanP[0], self.rectanP[1], self.rectanP[2], self.rectanP[3]]
-        self.df.loc[len(self.df)] = new_record
-        self.df.to_csv(f'{os.path.splitext(self.src)[0]}.csv', index=False)
 
         # Calculate next rectangle region
         self.rectanP = [0 for i in range(4)]
@@ -377,6 +370,15 @@ class BladeCapture():
             self.rectanP[2] = min(x1 + max(X) + 70, self.tgtpnt[0] + 150)   # right
             self.rectanP[3] = min(y1 + max(Y) + 70, self.tgtpnt[1] + 150)   # bottom
 
+        # write csv file
+        new_record = [self.tgtpnt[0], self.tgtpnt[1], self.rectanP[0], self.rectanP[1], self.rectanP[2], self.rectanP[3], os.path.splitext(os.path.basename(self.src))[0]]
+        self.df.loc[len(self.df)] = new_record
+        self.df.to_csv("Tip.csv", index=False)
+
+        # Crop the image
+        cropped_img = img[self.rectanP[1]:self.rectanP[3], self.rectanP[0]:self.rectanP[2]]
+        cv2.imwrite(os.path.join(self.output_blade_img_dir, f"frame_{self.frame_cnt}.jpg"), cropped_img)
+
         # Pickup next mask
         self.img = img.copy()
         if len(X)!=0 and len(Y)!=0:
@@ -384,21 +386,11 @@ class BladeCapture():
         cv2.circle(self.img, self.tgtpnt, 10, (0, 0, 255), -1, 8, 0) #(青,緑,赤)
         self.errorCnt += 1
         # save frames ---
-        frame_filename = os.path.join(self.output_dir, f"frame_{self.frame_count}.jpg")
-        # cv2.imwrite(frame_filename, self.img)
-        self.frame_count += 1
+        # cv2.imwrite(os.path.join(self.output_whole_img_dir, f"frame_{self.frame_cnt}.jpg"), self.img)
+        self.frame_cnt += 1
         # ---------------
         cv2.circle(self.img, (x1,y1), 7, (255, 0, 0), -1, 8, 0) # preFrame
         cv2.rectangle(self.img, (self.rectanP[0], self.rectanP[1]), (self.rectanP[2],self.rectanP[3]), self.CR_RECT, 2) #next rectangle
-
-        # Record the tip coordinates
-        '''
-        file = "cam1_70_130.txt"
-        fileobj = open(file, "a", encoding = "utf_8")
-        fileobj.write("tgtpnt: " + str(self.tgtpnt) + "   rectanP: " + str(self.rectanP))
-        fileobj.write("\n")
-        fileobj.close()
-        '''
 
         bimg = self.img[y1-10:y2+10, x1-10:x2+10, 0]
         gimg = self.img[y1-10:y2+10, x1-10:x2+10, 1]
@@ -594,13 +586,7 @@ class BladeCapture():
             # Visualize Buffer
             self.img = img.copy()
             try:
-                tim_fps = time.time()
                 self.graphCut(img)
-                tim_fps2 = time.time()
-                print(f"fps {self.src}: {tim_fps2 - tim_fps}")
-                new_record = [tim_fps2 - tim_fps]
-                self.df_fps.loc[len(self.df_fps)] = new_record
-                self.df_fps.to_csv(f'{os.path.splitext(self.src)[0]}_fps.csv', index=False)
             except:
                 print("ERROR_IN_UPDATE")
                 import traceback
@@ -623,7 +609,7 @@ class BladeCapture():
         ret, frm, tim = self.q.get()
         tgtpnt, tim2 = self.p.get()
         err = time.time() - tim
-        print("readTime ", self.src, ":", err)
+        # print("readTime ", self.src, ":", err)
         return (ret,frm,tgtpnt)
 
     def stop(self):

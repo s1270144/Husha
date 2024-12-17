@@ -7,6 +7,14 @@
 - results: テストで作成された画像やcsvファイル等
 - yolov5: Yolov5
 
+## メインファイル
+- test_original.py
+    - Template Matchingでブレード捕捉、GrabCutでブレードの領域抽出を行う
+    - BladeCapture.pyをimportしている
+- test_yolo.py
+    - Yoloでブレード捕捉、Yoloで先端捕捉を行う
+    - BladeCapture_yolo.pyをimportしている
+
 ## 命名規則
 - __1__ : オリジナルサイズ（1920 x 1080）
 - __1_2__ : 1/2サイズ（960 x 540）
@@ -17,7 +25,7 @@
 - txtファイル: Yoloの学習に必要（画像とcsvから作成）
 - xmlファイル: Faster R-CNN の学習に必要（アノテーションファイル）
 
-## test3.pyの実行（BladeCapture1.pyをimport）
+## test_original.pyの実行（BladeCapture.pyをimport）
 1. python3 test3.py
 2. ドラックして対象領域を囲む
 3. コマンド入力（詳細はBladeCapture1.py）してガイド
