@@ -2,7 +2,8 @@ import os
 import shutil
 
 # Input
-input_dir = '/home/iplslam/Husha/Data/Yolo_images'
+# input_dir = '/home/iplslam/Husha/Data/Yolo_images'
+input_dir = '/home/iplslam/Husha/test/original'
 
 # Output
 output = '/home/iplslam/Husha/Dataset/Yolo_images'
@@ -33,16 +34,19 @@ for sub_dir in os.listdir(input_dir):
         else: continue
 
         for target_dir in os.listdir(camdir):
-            target_dir = os.path.join(camdir, source_image_dir)
+            
             # 対応する画像ディレクトリ
+            target_dir = os.path.join(camdir, source_image_dir)
+            file_count = len([file for file in os.listdir(target_dir) if os.path.isfile(os.path.join(target_dir, file))])
             if os.path.exists(target_dir):
                 output_dir = os.path.join(output, f'{sub_dir}_{cam_dir}_jpg')
-                copy_files(target_dir, output_dir, ["50.jpg", "00.jpg"])
+                copy_files(target_dir, output_dir, [f"{str(i).zfill(2)}.jpg" for i in range(0, file_count, 10)])
 
+            # 対応するラベルディレクトリ
             target_dir = os.path.join(camdir, source_txt_dir)
-            # 対応する画像ディレクトリ
+            file_count = len([file for file in os.listdir(target_dir) if os.path.isfile(os.path.join(target_dir, file))])
             if os.path.exists(target_dir):
                 output_dir = os.path.join(output, f'{sub_dir}_{cam_dir}_txt')
-                copy_files(target_dir, output_dir, ["50.txt", "00.txt"])
+                copy_files(target_dir, output_dir, [f"{str(i).zfill(2)}.txt" for i in range(0, file_count, 10)])
 
 print("ファイルのコピーが完了しました。")

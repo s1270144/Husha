@@ -77,7 +77,6 @@ def getHeight(c1,c2,c3,o1,o2,o3):
     (buf,buf,dc12y) = aasTriangle(a2[1],a1[1],math.fabs(cp2[1]-cp1[1]))
     (buf,buf,dc13y) = aasTriangle(a3[1],a1[1],math.fabs(cp3[1]-cp1[1]))
 
-
     #print(dc21, dc23, dc12, dc32)
     # print(dc12x, dc13x, dc12y, dc13y)
     #print(a1[1]*180/math.pi,a2[1]*180/math.pi,a3[1]*180/math.pi)
@@ -97,9 +96,9 @@ def getHeight(c1,c2,c3,o1,o2,o3):
 #v1 = BladeCapture('C:\\Users\\yagu1\\Downloads\\frea\\frea\\20230207\\case01\\cam1.mp4',mvw,mvh,fr,size,offset,qnum,10240)
 #v2 = BladeCapture('C:\\Users\\yagu1\\Downloads\\frea\\frea\\20230207\\case01\\cam2.mp4',mvw,mvh,fr,size,offset,qnum,10200)
 #v3 = BladeCapture('C:\\Users\\yagu1\\Downloads\\frea\\frea\\20230207\\case01\\cam3.mp4',mvw,mvh,fr,size,offset,qnum,10238)
-v1 = BladeCapture('/home/iplslam/Husha/Data/movie/1/case01_trimmed_cam1.mp4',mvw,mvh,fr,size,offset,qnum,10)   # 変更箇所
-v2 = BladeCapture('/home/iplslam/Husha/Data/movie/1/case01_trimmed_cam2.mp4',mvw,mvh,fr,size,offset,qnum,10)   # 変更箇所
-v3 = BladeCapture('/home/iplslam/Husha/Data/movie/1/case01_trimmed_cam3.mp4',mvw,mvh,fr,size,offset,qnum,10)   # 変更箇所
+v1 = BladeCapture('/home/iplslam/Husha/Data/movie/1/onigajo_case02_1_cam1.mp4',mvw,mvh,fr,size,offset,qnum,10)   # 変更箇所
+v2 = BladeCapture('/home/iplslam/Husha/Data/movie/1/onigajo_case02_1_cam2.mp4',mvw,mvh,fr,size,offset,qnum,10)   # 変更箇所
+v3 = BladeCapture('/home/iplslam/Husha/Data/movie/1/onigajo_case02_1_cam3.mp4',mvw,mvh,fr,size,offset,qnum,10)   # 変更箇所
 
 # Capture Error Handling
 if not v1.isOpened():
@@ -136,13 +135,19 @@ v3.start()
 cv2.namedWindow('frame', cv2.WINDOW_NORMAL)
 cv2.resizeWindow('frame', 1920, 1080)
 
-path = r'/home/iplslam/Husha/test/movie/test_case01_yolo.mp4'  # 変更箇所
+path = r'/home/iplslam/Husha/test/movie/test.mp4'  # 変更箇所
 cap = cv2.VideoCapture(path)
 fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 writer = cv2.VideoWriter(path, fmt, 29.7, (mvw,mvh))
 cols_fps = ["throughput"]
 df_throughput = pd.DataFrame(columns=cols_fps)
-output_throughput = '/home/iplslam/Husha/test/yolo/case01/throughput_yolo.csv'     # 変更箇所
+output_throughput = '/home/iplslam/Husha/test/yolo/case02_2/throughput_yolo.csv'     # 変更箇所
+cols = ["Frame_x_cam1", "Frame_y_cam1", "Frame_w_cam1", "Frame_h_cam1", "FrameTip_x_cam1", "FrameTip_y_cam1", "FrameTip_w_cam1", "FrameTip_h_cam1", "Tip_x_cam1", "Tip_y_cam1",
+        "Frame_x_cam2", "Frame_y_cam2", "Frame_w_cam2", "Frame_h_cam2", "FrameTip_x_cam2", "FrameTip_y_cam2", "FrameTip_w_cam2", "FrameTip_h_cam2", "Tip_x_cam2", "Tip_y_cam2",
+        "Frame_x_cam3", "Frame_y_cam3", "Frame_w_cam3", "Frame_h_cam3", "FrameTip_x_cam3", "FrameTip_y_cam3", "FrameTip_w_cam3", "FrameTip_h_cam3", "Tip_x_cam3", "Tip_y_cam3",
+        "area_rate", "Main_X", "Main_Y", "Main_H"
+        ]
+df = pd.DataFrame(columns=cols)
 
 while True:
     os.system('cls')
@@ -151,9 +156,9 @@ while True:
     # Cycle Time Calculation
     tim = time.time()
     # Extract Info
-    ret1, frm1, t1 = v1.read()
-    ret2, frm2, t2 = v2.read()
-    ret3, frm3, t3 = v3.read()
+    ret1, frm1, t1, hoge1 = v1.read()
+    ret2, frm2, t2, hoge2 = v2.read()
+    ret3, frm3, t3, hoge3 = v3.read()
     tim2 = time.time()
     # print("Main: ReadTime:", tim2 - tim)
 
@@ -173,9 +178,9 @@ while True:
     rr = getArea(tt)
     art = rr/cr
     # print("area rate: ", art)
-    #cpos = (hh[0] - pos[0], hh[1] - pos[1], hh[2] - pos[2])
+    # cpos = (hh[0] - pos[0], hh[1] - pos[1], hh[2] - pos[2])
     # print("Main: ","x:", ctx, "  y:", cty)
-    #print("Main: ","W:", cpos[0], " D:", cpos[1]," H:", cpos[2])
+    # print("Main: ","W:", cpos[0], " D:", cpos[1]," H:", cpos[2])
     # Control for drone
     if ctx < -PCOM:
         comx = 1       # Move Left
@@ -230,6 +235,14 @@ while True:
     tim5 = time.time()
     # print("Main: VisualTime:", tim5 - tim4)
 
+    new_record = [hoge1[0], hoge1[1], hoge1[2], hoge1[3], hoge1[4], hoge1[5], hoge1[6], hoge1[7], hoge1[8], hoge1[9],
+                  hoge2[0], hoge2[1], hoge2[2], hoge2[3], hoge2[4], hoge2[5], hoge2[6], hoge2[7], hoge2[8], hoge2[9],
+                  hoge3[0], hoge3[1], hoge3[2], hoge3[3], hoge3[4], hoge3[5], hoge3[6], hoge3[7], hoge3[8], hoge3[9],
+                  art, hh[0]-pos[0], hh[1]-pos[1], (hh[2]-pos[2])*mmm
+                  ]
+    df.loc[len(df)] = new_record
+    df.to_csv("case02_1.csv", index=False)
+
     if key == ord('q'):
         v1.loopflag = False
         v2.loopflag = False
@@ -259,7 +272,7 @@ while True:
     # print("Main: Throughput - ",time.time()-tim)
     new_record = [time.time()-tim]
     df_throughput.loc[len(df_throughput)] = new_record
-    df_throughput.to_csv(output_throughput, index=False)
+    # df_throughput.to_csv(output_throughput, index=False)
 
 v1.release()
 v2.release()

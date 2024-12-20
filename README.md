@@ -33,6 +33,7 @@
 5. Escで実行
 
 ## Yolo実行
-学習: python3 train.py --data data/path__husha.yaml --weight yolov5s.pt --epochs 5
+学習（ブレード）: python3 train.py --data data/BladeFrame.yaml --weight yolov5s.pt --epochs 5
+学習（先端）: python3 train.py --data data/BladeTip.yaml --weight yolov5s.pt --epochs 5
 
 検出: python3 detect.py --source /home/iplslam/Husha/Data/onigajo/20230208/case01/cam1.mp4 --weights /home/iplslam/Husha/yolov5/runs/train/1/weights/best.pt

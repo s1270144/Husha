@@ -50,27 +50,30 @@ class BladeCapture():
     qq, pp = None, None               # q: Image buffer, p: Target point buffer
     ix, iy = 0, 0                   # Mouse
     xx, yy = [0,0], [0,0]           # left, right, top, bottom bounds of boundary
-    x1,y1,x2,y2 = 0,0,0,0
+    x1_f, y1_f, x2_f, y2_f = 0, 0, 0, 0
+    x1_t, y1_t, x2_t, y2_t = 0, 0, 0, 0
     loopflag = True
     errorCntShrink = 0
     errorCnt = 0
     resizeFlag = True
     cols = ["Tip_x", "Tip_y", "Frame_left", "Frame_top", "Frame_right", "Frame_bottom", 'cam']
     df = pd.DataFrame(columns=cols)
-    cols_fps = ["cam_fps"]
-    df_fps = pd.DataFrame(columns=cols_fps)
-    base_directory = "/home/iplslam/Husha/Data/Yolo_images/onigajo_case01"
-    weights_path = '/home/iplslam/Husha/yolov5/runs/train/1/weights/best.pt'
+    output_dir = '/home/iplslam/Husha/test/yolo/case02_2'
+    weights_path_f = '/home/iplslam/Husha/yolov5/runs/train/BladeFrame/weights/best.pt'
+    weights_path_t = '/home/iplslam/Husha/yolov5/runs/train/BladeTip/weights/best.pt'
     device = 'cuda'
-    model = torch.hub.load('/home/iplslam/Husha/yolov5', 'custom', path=weights_path, source='local')
-    model.to(device)
-    model.eval()
+    model_f = torch.hub.load('/home/iplslam/Husha/yolov5', 'custom', path=weights_path_f, source='local')
+    model_f.to(device)
+    model_f.eval()
+    model_t = torch.hub.load('/home/iplslam/Husha/yolov5', 'custom', path=weights_path_t, source='local')
+    model_t.to(device)
+    model_t.eval()
     resized_width = 640
     resized_height = 640
     scale_x = resized_width / width
     scale_y = resized_height / height
-    # target = (1920,1080)
-    target = (0,0)
+    # target = (1920, 1080)
+    target = (0, 0)
     # target = (0, 1080)
     # target = (1920, 0)
     # Image Buffers
@@ -117,10 +120,9 @@ class BladeCapture():
         self._stopped = False
         self._mode = 1
         # Output
-        self.base_dir = os.path.abspath(os.path.join(self.base_directory, f'{os.path.splitext(os.path.basename(self.src))[0]}'))
-        # print(self.base_dir)
-        self.output_whole_img_dir = os.path.abspath(os.path.join(self.base_dir, f'whole_images'))
-        self.output_blade_img_dir = os.path.abspath(os.path.join(self.base_dir, f'blade_images'))
+        self.output_dir = os.path.join(self.output_dir, f'{os.path.splitext(os.path.basename(self.src))[0]}')
+        self.output_whole_img_dir = os.path.abspath(os.path.join(self.output_dir, f'whole_images'), )
+        self.output_blade_img_dir = os.path.abspath(os.path.join(self.output_dir, f'blade_images'))
         os.makedirs(self.output_whole_img_dir, exist_ok=True)
         os.makedirs(self.output_blade_img_dir, exist_ok=True)
         self.frame_cnt = 0
@@ -228,205 +230,59 @@ class BladeCapture():
     # - We should not share the global variable here
     # img:
     def graphCut(self, img):
-        # Model for Background and Foreground (Initialize)
-        bgdmodel = np.zeros((1, 65), np.float64)
-        fgdmodel = np.zeros((1, 65), np.float64)
-        off = self.offset # 10
         
         # Detection surrounding rectangle with Yolo
-        img_sub = Image.fromarray(img)
-        results = self.model(img_sub)
-        coordinates = results.xyxy[0].cpu().numpy()
-        columns = ['xmin', 'ymin', 'xmax', 'ymax', 'confidence', 'class']
-        df = pd.DataFrame(coordinates, columns=columns)
-        # print(df)
-        self.x1 = int(df['xmin'][0])
-        self.y1 = int(df['ymin'][0])
-        self.x2 = int(df['xmax'][0])
-        self.y2 = int(df['ymax'][0])
-
-        self.pimg = self.img[self.y1:self.y2,self.x1:self.x2,:]
-        self.pmask = self.pimg[:,:,0]
-        pimg = self.pimg
-        pmsk = self.pmask
-        h,w,ll = pimg.shape
-
-        cv2.rectangle(self.img, (self.x1, self.y1), (self.x2, self.y2), self.CR_RECT, 2)
-    
-        # Preparation for GrabCut
-        # Cut position should manage by RectanP and offset (top_left[0] + top_left[1])
-        cutimg  = img[int(self.y1-off):int(self.y2+off),int(self.x1-off):int(self.x2+off),:]  # Cutted default image
-        cutimg2 = cutimg
-        cutgray = cutimg[:,:,0]                                     # Cutted grayscale image
-        cutmsk  = np.zeros(cutimg.shape[:2],dtype=np.uint8)         # Cutted mask Image
-        cutmsk2 = cutmsk.copy()                                     # Cutted masked Region
-        cutrct  = (off,off,self.rect[2],self.rect[3])               # Cutted area rectangle
-        # Mask region setting (to change internal setting)
-        cutmsk[cutmsk == 0] = 2   # PBG
-        cutmsk[self.mask[self.y1-off:self.y2+off,self.x1-off:self.x2+off,2]==255] = 0   # BG
-        cutmsk[self.mask[self.y1-off:self.y2+off,self.x1-off:self.x2+off,1]==255] = 1   # FG
-        cutmsk[self.mask[self.y1-off:self.y2+off,self.x1-off:self.x2+off,1]==31]  = 2   # PBG
-        cutmsk[self.mask[self.y1-off:self.y2+off,self.x1-off:self.x2+off,1]==193] = 3   # PFG
-        s = cutmsk.shape
-        hB, wB, cB = cutimg.shape
-        hA, wA, cA = hB, wB, cB
-        self.shcnt = 0
-        #'''Resize-> shrink ###############################################################################################
-        while(hA > 200 or wA > 200):
-            self.errorCntShrink += 1
-            self.shcnt += 1
-            cutimg = cv2.resize(cutimg , (int(wA*0.5), int(hA*0.5)), interpolation=cv2.INTER_NEAREST)
-            cutmsk  = cv2.resize(cutmsk, (int(wA*0.5), int(hA*0.5)), interpolation=cv2.INTER_NEAREST) # Cutted mask Image
-            hA, wA, cA = cutimg.shape
-            sA = cutmsk.shape
-            cutrct  = (int(off/(2*self.shcnt)),int(off/(2*self.shcnt)),int(self.rect[2]/(2*self.shcnt)),int(self.rect[3]/(2*self.shcnt)))
-        #'''
-
-        # Grabcut Region Detection
         try:
-            if (self._enableRect and not self._enableMask):   # grabcut with rect
-                cv2.grabCut(cutimg, cutmsk, cutrct, bgdmodel, fgdmodel, 5, cv2.GC_INIT_WITH_RECT)
-                self._enableMask = 1
-            elif (self._enableRect and self._enableMask):     # grabcut with mask
-                cv2.grabCut(cutimg, cutmsk, cutrct, bgdmodel, fgdmodel, 5, cv2.GC_INIT_WITH_MASK)
-            else:
-                return
+            img_sub = Image.fromarray(img)
+            results = self.model_f(img_sub)
+            coordinates = results.xyxy[0].cpu().numpy()
+            columns = ['xmin', 'ymin', 'xmax', 'ymax', 'confidence', 'class']
+            df_f = pd.DataFrame(coordinates, columns=columns)
+            # print(df_f)
+            self.x1_f = int(df_f['xmin'][0])
+            self.y1_f = int(df_f['ymin'][0])
+            self.x2_f = int(df_f['xmax'][0])
+            self.y2_f = int(df_f['ymax'][0])
+            self.pimg = self.img[self.y1_f:self.y2_f, self.x1_f:self.x2_f, :] # Inside surrounding frame        
+            cv2.rectangle(self.img, (self.x1_f, self.y1_f), (self.x2_f, self.y2_f), self.CR_RECT, 2)
         except:
-            try:
-                cv2.grabCut(cutimg, cutmsk, cutrct, bgdmodel, fgdmodel, 5, cv2.GC_INIT_WITH_RECT)
-                self._enableMask = 1
-            except:
-                print("ERROR_IN_GCUT")
-                import traceback
-                traceback.print_exc()
+            print("ERROR_IN_DETECTION_BLADE")
+            import traceback
+            traceback.print_exc()
 
-        #'''Resize-> originalSize ###########################################################################################
-        if(self.shcnt > 0):
-            cutimg = cutimg2
-            cutgray = cv2.cvtColor(cutimg, cv2.COLOR_BGR2GRAY)  # Cutted grayscale image
-            cutmsk  = cv2.resize(cutmsk , (wB, hB), interpolation=cv2.INTER_NEAREST)# Cutted mask Image
-            cutmsk2 = cutmsk.copy()  # Cutted masked Region
-            cutrct  = (off,off,self.rect[2],self.rect[3])
-        #'''
+        # Detection blade's tip with Yolo
+        try:
+            img_sub = Image.fromarray(self.pimg)
+            results = self.model_t(img_sub)
+            coordinates = results.xyxy[0].cpu().numpy()
+            columns = ['xmin', 'ymin', 'xmax', 'ymax', 'confidence', 'class']
+            df_t = pd.DataFrame(coordinates, columns=columns)
+            # print(df_t)
+            self.x1_t = int(df_t['xmin'][0]) + self.x1_f
+            self.y1_t = int(df_t['ymin'][0]) + self.y1_f
+            self.x2_t = int(df_t['xmax'][0]) + self.x1_f
+            self.y2_t = int(df_t['ymax'][0]) + self.y1_f
+            self.tgtpnt = (int((self.x1_t + self.x2_t) / 2), int((self.y1_t + self.y2_t) / 2))
+            cv2.rectangle(self.img, (self.x1_t, self.y1_t), (self.x2_t, self.y2_t), self.CR_RECT, 2)
+            cv2.circle(self.img, self.tgtpnt, 5, (0, 0, 255), -1, 8, 0)
+        except:
+            print("ERROR_IN_DETECTION_TIP")
+            import traceback
+            traceback.print_exc()
 
-        # Pickup masked region and image
-        cutmsk2 = np.where((cutmsk==1) + (cutmsk==3), 255, 0).astype('uint8')
-        cutgray2 = cv2.bitwise_and(cutgray, cutgray, mask=cutmsk2)
-        self.pmask = cutmsk
-        # Contour Extraction
-        contours, hierarchy = cv2.findContours(cutgray2, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-        X, Y = [], []   # Contour List
-        mi, ms = 0,0    # Maxarea index & Maxarea size
-
-        # Extract maximum area index and size
-        for i in range(len(contours)):
-            if ms < cv2.contourArea(contours[i]):
-                mi = i
-                ms = cv2.contourArea(contours[i])
-        if ms == 0:
-            print("Cannot Track")
-            return
-        m1 = np.zeros(cutimg.shape[:2], dtype = np.uint8)   # Working Contour
-        m2 = m1.copy()                                      # Cutted Next Mask
-        # Extract maximum contour
-        cv2.fillPoly(m1,pts=[contours[mi]], color=255)
-        # Morphology Calculation
-        k1 = np.ones((5,5),np.uint8)            # Definite Foreground Kernel
-        k2 = np.ones((40,40),np.uint8)          # Probably Background Kernel
-        k3 = np.ones((50,50),np.uint8)          # Definite Background Kernel
-        k4 = np.ones((3,3),np.uint8)            # Definite Foreground Kernel
-        er = cv2.erode(m1,k1,iterations = 1)    # Definite Foreground
-        # Small region - ersion, Big-region - thinning
-        if (ms < 100):
-            s1 = er.copy()
-            #print('copy')
-        else:
-            s1 = cv2.ximgproc.thinning(er, thinningType=cv2.ximgproc.THINNING_ZHANGSUEN)
-            #print('thinning')
-        s2 = cv2.dilate(s1,k4,iterations = 1)
-        er2 = cv2.dilate(er,k1,iterations = 1)  # Probably Foreground
-        di1 = cv2.dilate(er,k2,iterations = 1)  # Probably Background
-        di2 = cv2.dilate(er,k3,iterations = 1)  # Definite Background
-        # Joint information for next mask
-        m2[er == 0] = 2                         # Geneally, every pixel was prob. back
-        m2[di2 == 255] = 0                      # Def. back line
-        m2[di1 == 255] = 2                      # Inner prob. back
-        m2[er2 == 255] = 3                      # Prob. fore & exact shape
-        m2[s2 == 255] = 1                       # Def. fore.
-
-        # Find blade tip (far from camera center)
-        dist = 0.0
-        #center = (self.center[0]-x1, self.center[1]-y1) # Cutted Center
-        center = self.target
-        # Limitation: Only contoured region
-        for i in range(len(contours[mi])):
-            # Limitation: Only foreground (estimated) region
-            if(m2[contours[mi][i][0][1],contours[mi][i][0][0]] == 1 or m2[contours[mi][i][0][1],contours[mi][i][0][0]] == 3):
-                dd = math.sqrt((center[0]-contours[mi][i][0][0])**2 + (center[1]-contours[mi][i][0][1])**2)
-                if dist < dd:
-                    dist = dd
-                    self.tgtpnt = (self.x1 + contours[mi][i][0][0], self.y1 + contours[mi][i][0][1])
-                X.append(contours[mi][i][0][0])
-                Y.append(contours[mi][i][0][1])
-        
         # write csv file
-        new_record = [self.tgtpnt[0], self.tgtpnt[1], self.x1, self.y1, self.x2, self.y2, os.path.splitext(os.path.basename(self.src))[0]]
-        self.df.loc[len(self.df)] = new_record
-        self.df.to_csv(os.path.join(self.base_directory, f"Tip.csv"), index=False)
-        
-        # Crop the image
-        cropped_img = img[self.y1:self.y2, self.x1:self.x2]
-        cv2.imwrite(os.path.join(self.output_blade_img_dir, f"frame_{self.frame_cnt}.jpg"), cropped_img)
+        # new_record = [self.tgtpnt['X'], self.tgtpnt['Y'], self.x1, self.y1, self.x2, self.y2, os.path.splitext(os.path.basename(self.src))[0]]
+        # self.df.loc[len(self.df)] = new_record
+        # self.df.to_csv(os.path.join(self.output_dir, f"Tip.csv"), index=False)
 
         # Whole image
-        cv2.circle(self.img, self.tgtpnt, 10, (0, 0, 255), -1, 8, 0)
         cv2.imwrite(os.path.join(self.output_whole_img_dir, f"frame_{self.frame_cnt}.jpg"), self.img)
+
+        # Crop the image
+        cv2.imwrite(os.path.join(self.output_blade_img_dir, f"frame_{self.frame_cnt}.jpg"), self.pimg)
+
         self.frame_cnt += 1
 
-        # Pickup next mask
-        self.img = img.copy()
-        if len(X)!=0 and len(Y)!=0:
-            self.pimg = img[self.y1:self.y2,self.x1:self.x2,:]
-        cv2.circle(self.img, self.tgtpnt, 10, (0, 0, 255), -1, 8, 0) # For Monitor Display
-        self.errorCnt += 1
-
-        bimg = self.img[self.y1-10:self.y2+10, self.x1-10:self.x2+10, 0]
-        gimg = self.img[self.y1-10:self.y2+10, self.x1-10:self.x2+10, 1]
-        rimg = self.img[self.y1-10:self.y2+10, self.x1-10:self.x2+10, 2]
-        bimg[m2==0] = self.CR_BG[0]
-        gimg[m2==0] = self.CR_BG[1]
-        rimg[m2==0] = self.CR_BG[2]
-        bimg[m2==1] = self.CR_FG[0]
-        gimg[m2==1] = self.CR_FG[1]
-        rimg[m2==1] = self.CR_FG[2]
-        bimg[m2==3] = self.CR_PFG[0]
-        gimg[m2==3] = self.CR_PFG[1]
-        rimg[m2==3] = self.CR_PFG[2]
-        self.img[self.y1-10:self.y2+10, self.x1-10:self.x2+10, 0] = bimg
-        self.img[self.y1-10:self.y2+10, self.x1-10:self.x2+10, 1] = gimg
-        self.img[self.y1-10:self.y2+10, self.x1-10:self.x2+10, 2] = rimg
-        if self._routine and len(X)!=0 and len(Y)!=0:
-            # NEXTIMG: For visualization
-            nmsk = np.zeros(self.img.shape, dtype = np.uint8) # Next mask buffer
-            bimg = nmsk[self.y1-10:self.y2+10, self.x1-10:self.x2+10, 0]
-            gimg = nmsk[self.y1-10:self.y2+10, self.x1-10:self.x2+10, 1]
-            rimg = nmsk[self.y1-10:self.y2+10, self.x1-10:self.x2+10, 2]
-            bimg[m2==0] = self.CR_BG[0]
-            gimg[m2==0] = self.CR_BG[1]
-            rimg[m2==0] = self.CR_BG[2]
-            bimg[m2==1] = self.CR_FG[0]
-            gimg[m2==1] = self.CR_FG[1]
-            rimg[m2==1] = self.CR_FG[2]
-            bimg[m2==2] = self.CR_PBG[0]
-            gimg[m2==2] = self.CR_PBG[1]
-            rimg[m2==2] = self.CR_PBG[2]
-            bimg[m2==3] = self.CR_PFG[0]
-            gimg[m2==3] = self.CR_PFG[1]
-            rimg[m2==3] = self.CR_PFG[2]
-            nmsk[self.y1-10:self.y2+10, self.x1-10:self.x2+10, 0] = bimg
-            nmsk[self.y1-10:self.y2+10, self.x1-10:self.x2+10, 1] = gimg
-            nmsk[self.y1-10:self.y2+10, self.x1-10:self.x2+10, 2] = rimg
-            self.mask = nmsk.copy()
 
     #==================================
     # gCutInit: グラブカットの初期設定値を収集する
@@ -584,13 +440,7 @@ class BladeCapture():
             # Visualize Buffer
             self.img = img.copy()
             try:
-                tim_fps = time.time()
                 self.graphCut(img)
-                tim_fps2 = time.time()
-                print(f"fps {self.src}: {tim_fps2 - tim_fps}")
-                new_record = [tim_fps2 - tim_fps]
-                self.df_fps.loc[len(self.df_fps)] = new_record
-                self.df_fps.to_csv(f'{os.path.splitext(self.src)[0]}_yolo_fps.csv', index=False)
             except:
                 print("ERROR_IN_UPDATE")
                 import traceback
@@ -613,7 +463,7 @@ class BladeCapture():
         ret, frm, tim = self.q.get()
         tgtpnt, tim2 = self.p.get()
         err = time.time() - tim
-        print("readTime ", self.src, ":", err)
+        # print("readTime ", self.src, ":", err)
         return (ret,frm,tgtpnt)
 
     def stop(self):

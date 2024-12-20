@@ -1,12 +1,12 @@
 from moviepy.editor import VideoFileClip
 
 # Paths
-input_video_path = '/home/iplslam/Husha/Data/case01/cam3.mp4'
-output_video_path = '/home/iplslam/Husha/Data/movie/1/case01_trimmed_cam3.mp4'  # 出力ファイルは入力と別パスに
+input_video_path = '/home/iplslam/Husha/Data/onigajo/20230208/case02/cam3.mp4'
+output_video_path = '/home/iplslam/Husha/Data/movie/1/onigajo_case02_2_cam3.mp4'  # 出力ファイルは入力と別パスに
 
 # Time range for trimming (in seconds)
-start_time = 90    # Start time in seconds
-end_time = 210      # End time in seconds
+start_time = 180    # Start time in seconds
+end_time = 300      # End time in seconds
 
 # Load video
 video = VideoFileClip(input_video_path)

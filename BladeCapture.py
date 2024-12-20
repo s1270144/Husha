@@ -55,12 +55,12 @@ class BladeCapture():
     resizeFlag = True
     cols = ["Tip_x", "Tip_y", "Frame_left", "Frame_top", "Frame_right", "Frame_bottom", 'cam']
     df = pd.DataFrame(columns=cols)
-    output_dir = '/home/iplslam/Husha/test/original/case01'    # 変更箇所
+    output_dir = '/home/iplslam/Husha/test/original/case02_1'    # 変更箇所
     # target = (0, 360)   
     # target = (1920,1080)
-    # target = (0,0)
+    target = (0,0)
     # target = (0, 1080)
-    target = (1920, 0)
+    # target = (1920, 0)
     # Image Buffers
     #img, img2, mask, out, cont, nimg, nmsk = None, None, None, None, None, None, None
 

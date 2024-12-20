@@ -4,8 +4,8 @@ import os
 from tqdm import tqdm
 
 # 入力ディレクトリとファイルパス
-base_dir = "/home/iplslam/Husha/test/original/trimmed/cam3"
-csv_path = os.path.join(base_dir, "cam3.csv")
+base_dir = "/home/iplslam/Husha/test/original/case01/cam1"
+csv_path = os.path.join(base_dir, "cam1.csv")
 images_dir = os.path.join(base_dir, "blade_images")
 output_dir = os.path.join(base_dir, "blade_images_with_points") 
 output_csv_path = os.path.join(base_dir, "processed_points.csv")  # 保存するCSVファイルのパス

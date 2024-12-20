@@ -56,9 +56,8 @@ class BladeCapture():
     errorCntShrink = 0
     errorCnt = 0
     resizeFlag = True
-    cols = ["Tip_x", "Tip_y", "Frame_left", "Frame_top", "Frame_right", "Frame_bottom", 'cam']
-    df = pd.DataFrame(columns=cols)
-    output_dir = '/home/iplslam/Husha/test/yolo/case01'
+    new_record = ["Frame_x", "Frame_y", "Frame_w", "Frame_h", "FrameTip_x", "FrameTip_y", "FrameTip_w", "FrameTip_h", "Tip_x", "Tip_y", 'cam']
+    output_dir = '/home/iplslam/Husha/test/yolo/case02_1'
     weights_path_f = '/home/iplslam/Husha/yolov5/runs/train/BladeFrame/weights/best.pt'
     weights_path_t = '/home/iplslam/Husha/yolov5/runs/train/BladeTip/weights/best.pt'
     device = 'cuda'
@@ -243,6 +242,8 @@ class BladeCapture():
             self.y1_f = int(df_f['ymin'][0])
             self.x2_f = int(df_f['xmax'][0])
             self.y2_f = int(df_f['ymax'][0])
+            self.frame_w = self.x2_f - self.x1_f
+            self.frame_h = self.y2_f - self.y1_f
             self.pimg = self.img[self.y1_f:self.y2_f, self.x1_f:self.x2_f, :] # Inside surrounding frame        
             cv2.rectangle(self.img, (self.x1_f, self.y1_f), (self.x2_f, self.y2_f), self.CR_RECT, 2)
         except:
@@ -262,6 +263,8 @@ class BladeCapture():
             self.y1_t = int(df_t['ymin'][0]) + self.y1_f
             self.x2_t = int(df_t['xmax'][0]) + self.x1_f
             self.y2_t = int(df_t['ymax'][0]) + self.y1_f
+            self.frametip_w = self.x2_t - self.x1_t
+            self.frametip_h = self.y2_t - self.y1_t
             self.tgtpnt = (int((self.x1_t + self.x2_t) / 2), int((self.y1_t + self.y2_t) / 2))
             cv2.rectangle(self.img, (self.x1_t, self.y1_t), (self.x2_t, self.y2_t), self.CR_RECT, 2)
             cv2.circle(self.img, self.tgtpnt, 5, (0, 0, 255), -1, 8, 0)
@@ -270,16 +273,13 @@ class BladeCapture():
             import traceback
             traceback.print_exc()
 
-        # write csv file
-        # new_record = [self.tgtpnt['X'], self.tgtpnt['Y'], self.x1, self.y1, self.x2, self.y2, os.path.splitext(os.path.basename(self.src))[0]]
-        # self.df.loc[len(self.df)] = new_record
-        # self.df.to_csv(os.path.join(self.output_dir, f"Tip.csv"), index=False)
+        self.new_record = [self.x1_t, self.y1_t, self.frame_w, self.frame_h, self.x1_f, self.y1_f, self.frametip_w, self.frametip_h, self.tgtpnt[0], self.tgtpnt[1], os.path.splitext(os.path.basename(self.src))[0]]
 
         # Whole image
-        cv2.imwrite(os.path.join(self.output_whole_img_dir, f"frame_{self.frame_cnt}.jpg"), self.img)
+        # cv2.imwrite(os.path.join(self.output_whole_img_dir, f"frame_{self.frame_cnt}.jpg"), self.img)
 
         # Crop the image
-        cv2.imwrite(os.path.join(self.output_blade_img_dir, f"frame_{self.frame_cnt}.jpg"), self.pimg)
+        # cv2.imwrite(os.path.join(self.output_blade_img_dir, f"frame_{self.frame_cnt}.jpg"), self.pimg)
 
         self.frame_cnt += 1
 
@@ -451,7 +451,7 @@ class BladeCapture():
                 self.q.get()
                 self.p.get()
             self.q.put((ret, cv2.resize(self.img,(960,540)), ctime))
-            self.p.put((self.tgtpnt, ctime))
+            self.p.put((self.tgtpnt, self.new_record, ctime))
         self.started.wait()
 
     def readset(self):
@@ -461,10 +461,10 @@ class BladeCapture():
         #ret, frm, tim = self.qq.pop()
         #tgtpnt, tim2 = self.pp.pop()
         ret, frm, tim = self.q.get()
-        tgtpnt, tim2 = self.p.get()
+        tgtpnt, new_record, tim2 = self.p.get()
         err = time.time() - tim
         # print("readTime ", self.src, ":", err)
-        return (ret,frm,tgtpnt)
+        return (ret,frm,tgtpnt, new_record)
 
     def stop(self):
         self._stopped = True
