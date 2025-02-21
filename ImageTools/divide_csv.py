@@ -2,10 +2,10 @@ import pandas as pd
 import os
 
 # ベースディレクトリ（Tip.csvが存在するディレクトリ）
-base_dir = "/home/iplslam/Husha/test/original/trimmed"
+base_dir = "/home/iplslam/Husha/test/original/case02_1"
 
 # Tip.csvのパス
-tip_csv_path = os.path.join(base_dir, "Tip_3.csv")
+tip_csv_path = os.path.join(base_dir, "Tip.csv")
 
 # 各ディレクトリのパス
 cam_dirs = {

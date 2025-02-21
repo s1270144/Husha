@@ -55,7 +55,7 @@ class BladeCapture():
     resizeFlag = True
     cols = ["Tip_x", "Tip_y", "Frame_left", "Frame_top", "Frame_right", "Frame_bottom", 'cam']
     df = pd.DataFrame(columns=cols)
-    output_dir = '/home/iplslam/Husha/test/original/case02_1'    # 変更箇所
+    output_dir = '/home/iplslam/Husha/test/original/onigajo_case022_dark'    # 変更箇所
     # target = (0, 360)   
     # target = (1920,1080)
     target = (0,0)
@@ -108,6 +108,8 @@ class BladeCapture():
         self.output_dir = os.path.join(self.output_dir, f'{os.path.splitext(os.path.basename(self.src))[0]}')
         self.output_whole_img_dir = os.path.abspath(os.path.join(self.output_dir, f'whole_images'), )
         self.output_blade_img_dir = os.path.abspath(os.path.join(self.output_dir, f'blade_images'))
+        # self.output_wholeblade_dir = os.path.abspath(os.path.join(self.output_dir, f'whole_images_frame'))
+        # os.makedirs(self.output_wholeblade_dir, exist_ok=True)
         os.makedirs(self.output_whole_img_dir, exist_ok=True)
         os.makedirs(self.output_blade_img_dir, exist_ok=True)
         self.frame_cnt = 0
@@ -371,9 +373,9 @@ class BladeCapture():
             self.rectanP[3] = min(y1 + max(Y) + 70, self.tgtpnt[1] + 150)   # bottom
 
         # write csv file
-        new_record = [self.tgtpnt[0], self.tgtpnt[1], self.rectanP[0], self.rectanP[1], self.rectanP[2], self.rectanP[3], os.path.splitext(os.path.basename(self.src))[0]]
-        self.df.loc[len(self.df)] = new_record
-        self.df.to_csv("Tip.csv", index=False)
+        # new_record = [self.tgtpnt[0], self.tgtpnt[1], self.rectanP[0], self.rectanP[1], self.rectanP[2], self.rectanP[3], os.path.splitext(os.path.basename(self.src))[0]]
+        # self.df.loc[len(self.df)] = new_record
+        # self.df.to_csv("Tip.csv", index=False)
 
         # Crop the image
         cropped_img = img[self.rectanP[1]:self.rectanP[3], self.rectanP[0]:self.rectanP[2]]
@@ -383,14 +385,16 @@ class BladeCapture():
         self.img = img.copy()
         if len(X)!=0 and len(Y)!=0:
             self.pimg = img[self.rectanP[1]:self.rectanP[3],self.rectanP[0]:self.rectanP[2],:]
-        cv2.circle(self.img, self.tgtpnt, 10, (0, 0, 255), -1, 8, 0) #(青,緑,赤)
+        
         self.errorCnt += 1
         # save frames ---
-        # cv2.imwrite(os.path.join(self.output_whole_img_dir, f"frame_{self.frame_cnt}.jpg"), self.img)
+        cv2.imwrite(os.path.join(self.output_whole_img_dir, f"frame_{self.frame_cnt}.jpg"), self.img)
+        cv2.circle(self.img, self.tgtpnt, 10, (0, 0, 255), -1, 8, 0) #(青,緑,赤)
         self.frame_cnt += 1
         # ---------------
-        cv2.circle(self.img, (x1,y1), 7, (255, 0, 0), -1, 8, 0) # preFrame
+        # cv2.circle(self.img, (x1,y1), 7, (255, 0, 0), -1, 8, 0) # preFrame
         cv2.rectangle(self.img, (self.rectanP[0], self.rectanP[1]), (self.rectanP[2],self.rectanP[3]), self.CR_RECT, 2) #next rectangle
+        # cv2.imwrite(os.path.join(self.output_wholeblade_dir, f"frame_{self.frame_cnt}.jpg"), self.img)
 
         bimg = self.img[y1-10:y2+10, x1-10:x2+10, 0]
         gimg = self.img[y1-10:y2+10, x1-10:x2+10, 1]

@@ -95,11 +95,11 @@ def getHeight(c1,c2,c3,o1,o2,o3):
 
 # Capture Setting (Hard Code)
 #v1 = BladeCapture('C:\\Users\\yagu1\\Downloads\\frea\\frea\\20230207\\case01\\cam1.mp4',mvw,mvh,fr,size,offset,qnum,10240)
-#v2 = BladeCapture('C:\\Users\\yagu1\\Downloads\\frea\\frea\\20230207\\case01\\cam2.mp4',mvw,mvh,fr,size,offset,qnum,10200)
+#v2 = BladeCapture('C:\\Users\\yagu1\\Downloads\\frea\\frea\\20230207\\case01\\cam2.mx2, y2p4',mvw,mvh,fr,size,offset,qnum,10200)
 #v3 = BladeCapture('C:\\Users\\yagu1\\Downloads\\frea\\frea\\20230207\\case01\\cam3.mp4',mvw,mvh,fr,size,offset,qnum,10238)
-v1 = BladeCapture('/home/iplslam/Husha/Data/movie/1/onigajo_case02_1_cam1.mp4',mvw,mvh,fr,size,offset,qnum,10)   # 変更箇所
-v2 = BladeCapture('/home/iplslam/Husha/Data/movie/1/onigajo_case02_1_cam2.mp4',mvw,mvh,fr,size,offset,qnum,10)   # 変更箇所
-v3 = BladeCapture('/home/iplslam/Husha/Data/movie/1/onigajo_case02_1_cam3.mp4',mvw,mvh,fr,size,offset,qnum,10)   # 変更箇所
+v1 = BladeCapture('/home/iplslam/Husha/Data/test/dark_onigajo_case022_cam1.mp4',mvw,mvh,fr,size,offset,qnum,10)   # 変更箇所
+v2 = BladeCapture('/home/iplslam/Husha/Data/test/dark_onigajo_case022_cam2.mp4',mvw,mvh,fr,size,offset,qnum,10)   # 変更箇所
+v3 = BladeCapture('/home/iplslam/Husha/Data/test/dark_onigajo_case022_cam3.mp4',mvw,mvh,fr,size,offset,qnum,10)   # 変更箇所
 
 # Capture Error Handling
 if not v1.isOpened():
@@ -136,13 +136,13 @@ v3.start()
 cv2.namedWindow('frame', cv2.WINDOW_NORMAL)
 cv2.resizeWindow('frame', 1920, 1080)
 
-path = r'/home/iplslam/Husha/test/movie/test_original.mp4'   # 変更箇所
+path = r'/home/iplslam/Husha/test/movie/test_onigajo_case022_dark_original.mp4'   # 変更箇所
 cap = cv2.VideoCapture(path)
 fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 writer = cv2.VideoWriter(path, fmt, 29.7, (mvw,mvh))
 cols_fps = ["throughput"]
 df_throughput = pd.DataFrame(columns=cols_fps)
-output_throughput = '/home/iplslam/Husha/test/original/case01/throughput_original.csv'     # 変更箇所
+output_throughput = '/home/iplslam/Husha/test/original/case02_1/throughput_original.csv'     # 変更箇所
 
 while True:
     os.system('cls')
@@ -257,9 +257,9 @@ while True:
         v2.start()
         v3.start()
     # print("Main: Throughput - ",time.time()-tim)
-    new_record = [time.time()-tim]
-    df_throughput.loc[len(df_throughput)] = new_record
-    df_throughput.to_csv(output_throughput, index=False)
+    # new_record = [time.time()-tim]
+    # df_throughput.loc[len(df_throughput)] = new_record
+    # df_throughput.to_csv(output_throughput, index=False)
 
 v1.release()
 v2.release()

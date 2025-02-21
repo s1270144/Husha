@@ -37,3 +37,8 @@
 学習（先端）: python3 train.py --data data/BladeTip.yaml --weight yolov5s.pt --epochs 5
 
 検出: python3 detect.py --source /home/iplslam/Husha/Data/onigajo/20230208/case01/cam1.mp4 --weights /home/iplslam/Husha/yolov5/runs/train/1/weights/best.pt
+
+## 更新
+2025/3
+
+GitHub https://github.com/s1270144/Husha

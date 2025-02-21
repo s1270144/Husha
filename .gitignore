@@ -5,3 +5,4 @@ results/
 FasterRCNN/
 Dataset/
 Data/
+*.zip

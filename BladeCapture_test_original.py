@@ -6,11 +6,9 @@ import time
 import sys
 import math
 import os
-import torch
 from collections import deque
 from matplotlib import pyplot as plt
 import pandas as pd
-from PIL import Image
 
 class BladeCapture():
 
@@ -50,32 +48,22 @@ class BladeCapture():
     qq, pp = None, None               # q: Image buffer, p: Target point buffer
     ix, iy = 0, 0                   # Mouse
     xx, yy = [0,0], [0,0]           # left, right, top, bottom bounds of boundary
-    x1_f, y1_f, x2_f, y2_f = 0, 0, 0, 0
-    x1_t, y1_t, x2_t, y2_t = 0, 0, 0, 0
+    rectanP = [0 for i in range(4)] # Target Rectangle
     loopflag = True
     errorCntShrink = 0
     errorCnt = 0
     resizeFlag = True
     cols = ["Tip_x", "Tip_y", "Frame_left", "Frame_top", "Frame_right", "Frame_bottom", 'cam']
     df = pd.DataFrame(columns=cols)
-    output_dir = '/home/iplslam/Husha/test/yolo/case02_2'
-    weights_path_f = '/home/iplslam/Husha/yolov5/runs/train/BladeFrame/weights/best.pt'
-    weights_path_t = '/home/iplslam/Husha/yolov5/runs/train/BladeTip/weights/best.pt'
-    device = 'cuda'
-    model_f = torch.hub.load('/home/iplslam/Husha/yolov5', 'custom', path=weights_path_f, source='local')
-    model_f.to(device)
-    model_f.eval()
-    model_t = torch.hub.load('/home/iplslam/Husha/yolov5', 'custom', path=weights_path_t, source='local')
-    model_t.to(device)
-    model_t.eval()
-    resized_width = 640
-    resized_height = 640
-    scale_x = resized_width / width
-    scale_y = resized_height / height
-    # target = (1920, 1080)
-    target = (0, 0)
+    output_dir = '/home/iplslam/Husha/test/original/test_case01'    # 変更箇所
+    cols_fps = ["time"]
+    df_throughput = pd.DataFrame(columns=cols_fps)
+    output_throughput = 'test_time_original.csv'     # 変更箇所
+    # target = (0, 360)   
+    # target = (1920,1080)
+    # target = (0,0)
     # target = (0, 1080)
-    # target = (1920, 0)
+    target = (1920, 0)
     # Image Buffers
     #img, img2, mask, out, cont, nimg, nmsk = None, None, None, None, None, None, None
 
@@ -230,58 +218,75 @@ class BladeCapture():
     # - We should not share the global variable here
     # img:
     def graphCut(self, img):
+        """
+        Perform GrabCut for target extraction with optional template matching for tracking.
         
-        # Detection surrounding rectangle with Yolo
+        Parameters:
+        - img: Input image (current frame).
+        """
+        # Initialize models for background and foreground
+        bgdmodel = np.zeros((1, 65), np.float64)
+        fgdmodel = np.zeros((1, 65), np.float64)
+        
+        # Retrieve previous image, mask, and offset
+        off = self.offset  # Typically set to 10
+        pimg = self.pimg
+        pmsk = self.pmask
+        h, w, _ = pimg.shape  # Height, width, and number of channels of the previous image
+
         try:
-            img_sub = Image.fromarray(img)
-            results = self.model_f(img_sub)
-            coordinates = results.xyxy[0].cpu().numpy()
-            columns = ['xmin', 'ymin', 'xmax', 'ymax', 'confidence', 'class']
-            df_f = pd.DataFrame(coordinates, columns=columns)
-            # print(df_f)
-            self.x1_f = int(df_f['xmin'][0])
-            self.y1_f = int(df_f['ymin'][0])
-            self.x2_f = int(df_f['xmax'][0])
-            self.y2_f = int(df_f['ymax'][0])
-            self.pimg = self.img[self.y1_f:self.y2_f, self.x1_f:self.x2_f, :] # Inside surrounding frame        
-            cv2.rectangle(self.img, (self.x1_f, self.y1_f), (self.x2_f, self.y2_f), self.CR_RECT, 2)
-        except:
-            print("ERROR_IN_DETECTION_BLADE")
+            if self._routine:  # If tracking mode is enabled
+                # Define a larger rectangle around the previous rectangle for template matching
+                x1 = max(0, self.point[0] - w)
+                y1 = max(0, self.point[1] - h)
+                x2 = min(self.width - 1, self.point[2] + w)
+                y2 = min(self.height - 1, self.point[3] + h)
+
+                # Extract the region for template matching
+                cutimg = img[int(y1):int(y2), int(x1):int(x2), :]
+
+                # Check if cutimg is large enough for template matching
+                if cutimg.shape[0] >= pimg.shape[0] and cutimg.shape[1] >= pimg.shape[1]:
+                    # Perform template matching on the first channel
+                    res = cv2.matchTemplate(cutimg[:, :, 0], pimg[:, :, 0], cv2.TM_CCOEFF_NORMED)
+                    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+                    top_left = max_loc  # Top-left corner of the best match
+
+                    # Update target rectangle for GrabCut
+                    self.point[0], self.point[1] = x1 + top_left[0], y1 + top_left[1]
+                    self.point[2], self.point[3] = self.point[0] + w, self.point[1] + h
+                else:
+                    print("ERROR: Template size exceeds search area size. Skipping template matching.")
+                    return  # Exit if template matching is not possible
+            else:  # No tracking, use the predefined rectangle
+                print('No tracking routine, using predefined rectangle.')
+        except Exception as e:
+            # Handle errors gracefully and provide debug information
+            print("ERROR during template matching:")
             import traceback
             traceback.print_exc()
+            return  # Exit the function if an error occurs
 
-        # Detection blade's tip with Yolo
-        try:
-            img_sub = Image.fromarray(self.pimg)
-            results = self.model_t(img_sub)
-            coordinates = results.xyxy[0].cpu().numpy()
-            columns = ['xmin', 'ymin', 'xmax', 'ymax', 'confidence', 'class']
-            df_t = pd.DataFrame(coordinates, columns=columns)
-            # print(df_t)
-            self.x1_t = int(df_t['xmin'][0]) + self.x1_f
-            self.y1_t = int(df_t['ymin'][0]) + self.y1_f
-            self.x2_t = int(df_t['xmax'][0]) + self.x1_f
-            self.y2_t = int(df_t['ymax'][0]) + self.y1_f
-            self.tgtpnt = (int((self.x1_t + self.x2_t) / 2), int((self.y1_t + self.y2_t) / 2))
-            cv2.rectangle(self.img, (self.x1_t, self.y1_t), (self.x2_t, self.y2_t), self.CR_RECT, 2)
-            cv2.circle(self.img, self.tgtpnt, 5, (0, 0, 255), -1, 8, 0)
-        except:
-            print("ERROR_IN_DETECTION_TIP")
-            import traceback
-            traceback.print_exc()
+        # print(self.point)
 
+        # Update the previous image and rectangle for the next iteration
+        self.img = img.copy()
+        self.pimg = img[int(self.point[1]):int(self.point[3]), int(self.point[0]):int(self.point[2]), :]
+        self.frame_cnt += 1  # Increment frame counter
+
+        # Draw the rectangle on the image
+        cv2.rectangle(
+            self.img,
+            (int(self.point[0]), int(self.point[1])),
+            (int(self.point[2]), int(self.point[3])),
+            self.CR_RECT,
+            2
+            )
+        
         # write csv file
-        # new_record = [self.tgtpnt['X'], self.tgtpnt['Y'], self.x1, self.y1, self.x2, self.y2, os.path.splitext(os.path.basename(self.src))[0]]
+        # new_record = [self.tgtpnt[0], self.tgtpnt[1], self.rectanP[0], self.rectanP[1], self.rectanP[2], self.rectanP[3], os.path.splitext(os.path.basename(self.src))[0]]
         # self.df.loc[len(self.df)] = new_record
-        # self.df.to_csv(os.path.join(self.output_dir, f"Tip.csv"), index=False)
-
-        # Whole image
-        cv2.imwrite(os.path.join(self.output_whole_img_dir, f"frame_{self.frame_cnt}.jpg"), self.img)
-
-        # Crop the image
-        cv2.imwrite(os.path.join(self.output_blade_img_dir, f"frame_{self.frame_cnt}.jpg"), self.pimg)
-
-        self.frame_cnt += 1
+        # self.df.to_csv("time_original.csv", index=False)
 
 
     #==================================
@@ -440,7 +445,12 @@ class BladeCapture():
             # Visualize Buffer
             self.img = img.copy()
             try:
+                tim = time.time()
                 self.graphCut(img)
+                tim2 = time.time()
+                new_record = [time.time()-tim]
+                self.df_throughput.loc[len(self.df_throughput)] = new_record
+                self.df_throughput.to_csv(self.output_throughput, index=False)
             except:
                 print("ERROR_IN_UPDATE")
                 import traceback

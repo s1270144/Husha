@@ -57,22 +57,22 @@ class BladeCapture():
     errorCnt = 0
     resizeFlag = True
     new_record = ["Frame_x", "Frame_y", "Frame_w", "Frame_h", "FrameTip_x", "FrameTip_y", "FrameTip_w", "FrameTip_h", "Tip_x", "Tip_y", 'cam']
-    output_dir = '/home/iplslam/Husha/test/yolo/step2'    # 変更箇所
+    output_dir = '/home/iplslam/Husha/test/yolo/step2'
     weights_path_f = '/home/iplslam/Husha/yolov5/runs/train/BladeFrame/weights/best.pt'
-    weights_path_t = '/home/iplslam/Husha/yolov5/runs/train/BladeTip/weights/best.pt'
     device = 'cuda'
     model_f = torch.hub.load('/home/iplslam/Husha/yolov5', 'custom', path=weights_path_f, source='local')
     model_f.to(device)
     model_f.eval()
-    model_t = torch.hub.load('/home/iplslam/Husha/yolov5', 'custom', path=weights_path_t, source='local')
-    model_t.to(device)
-    model_t.eval()
     resized_width = 640
     resized_height = 640
     scale_x = resized_width / width
     scale_y = resized_height / height
-    # target = (1920, 1080)
-    target = (0, 0)
+    cols_fps = ["time"]
+    df_throughput = pd.DataFrame(columns=cols_fps)
+    output_throughput = 'test_time_yolo.csv'     # 変更箇所
+    # target = (0, 360)   
+    # target = (1920,1080)
+    target = (0,0)
     # target = (0, 1080)
     # target = (1920, 0)
     # Image Buffers
@@ -122,8 +122,9 @@ class BladeCapture():
         self.output_dir = os.path.join(self.output_dir, f'{os.path.splitext(os.path.basename(self.src))[0]}')
         self.output_whole_img_dir = os.path.abspath(os.path.join(self.output_dir, f'whole_images'), )
         self.output_blade_img_dir = os.path.abspath(os.path.join(self.output_dir, f'blade_images'))
-        os.makedirs(self.output_whole_img_dir, exist_ok=True)
-        os.makedirs(self.output_blade_img_dir, exist_ok=True)
+        # os.makedirs(self.output_whole_img_dir, exist_ok=True)
+        # os.makedirs(self.output_blade_img_dir, exist_ok=True)
+        self.new_record = None
         self.frame_cnt = 0
         # Grubcut Initialization
         self.gCutInit()
@@ -229,7 +230,7 @@ class BladeCapture():
     # - We should not share the global variable here
     # img:
     def graphCut(self, img):
-        
+
         # Detection surrounding rectangle with Yolo
         try:
             img_sub = Image.fromarray(img)
@@ -238,46 +239,21 @@ class BladeCapture():
             columns = ['xmin', 'ymin', 'xmax', 'ymax', 'confidence', 'class']
             df_f = pd.DataFrame(coordinates, columns=columns)
             # print(df_f)
-            self.x1_f = int(df_f['xmin'][0])
-            self.y1_f = int(df_f['ymin'][0])
-            self.x2_f = int(df_f['xmax'][0])
-            self.y2_f = int(df_f['ymax'][0])
-            self.frame_w = self.x2_f - self.x1_f
-            self.frame_h = self.y2_f - self.y1_f
-            self.pimg = self.img[self.y1_f:self.y2_f, self.x1_f:self.x2_f, :] # Inside surrounding frame        
-            cv2.rectangle(self.img, (self.x1_f, self.y1_f), (self.x2_f, self.y2_f), self.CR_RECT, 2)
-            # Whole image
-            cv2.imwrite(os.path.join(self.output_whole_img_dir, f"frame_{self.frame_cnt}.jpg"), self.img)
+            x1 = int(df_f['xmin'][0])
+            y1 = int(df_f['ymin'][0])
+            x2 = int(df_f['xmax'][0])
+            y2 = int(df_f['ymax'][0])
+            self.frame_w = x2 - x1
+            self.frame_h = y2 - y1
+            self.pimg = self.img[y1:y2, x1:x2, :] # Inside surrounding frame        
+            cv2.rectangle(self.img, (x1, y1), (x2, y2), self.CR_RECT, 2)
         except:
             print("ERROR_IN_DETECTION_BLADE")
             import traceback
             traceback.print_exc()
 
-        # Detection blade's tip with Yolo
-        try:
-            img_sub = Image.fromarray(self.pimg)
-            results = self.model_t(img_sub)
-            coordinates = results.xyxy[0].cpu().numpy()
-            columns = ['xmin', 'ymin', 'xmax', 'ymax', 'confidence', 'class']
-            df_t = pd.DataFrame(coordinates, columns=columns)
-            # print(df_t)
-            self.x1_t = int(df_t['xmin'][0]) + self.x1_f
-            self.y1_t = int(df_t['ymin'][0]) + self.y1_f
-            self.x2_t = int(df_t['xmax'][0]) + self.x1_f
-            self.y2_t = int(df_t['ymax'][0]) + self.y1_f
-            self.frametip_w = self.x2_t - self.x1_t
-            self.frametip_h = self.y2_t - self.y1_t
-            self.tgtpnt = (int((self.x1_t + self.x2_t) / 2), int((self.y1_t + self.y2_t) / 2))
-            cv2.rectangle(self.img, (self.x1_t, self.y1_t), (self.x2_t, self.y2_t), self.CR_RECT, 2)
-            cv2.circle(self.img, self.tgtpnt, 5, (0, 0, 255), -1, 8, 0)
-            # Crop the image
-            cv2.imwrite(os.path.join(self.output_blade_img_dir, f"frame_{self.frame_cnt}.jpg"), self.pimg)
-        except:
-            print("ERROR_IN_DETECTION_TIP")
-            import traceback
-            traceback.print_exc()
+        cv2.imwrite(os.path.join(self.output_whole_img_dir, f"frame_{self.frame_cnt}.jpg"), self.img)
 
-        self.new_record = [self.x1_t, self.y1_t, self.frame_w, self.frame_h, self.x1_f, self.y1_f, self.frametip_w, self.frametip_h, self.tgtpnt[0], self.tgtpnt[1], os.path.splitext(os.path.basename(self.src))[0]]
 
         self.frame_cnt += 1
 
@@ -391,7 +367,12 @@ class BladeCapture():
                     print(""" For finer touchups, mark foreground and background after pressing keys 0-4
                     and again press 'n' \n""")
                     try:
+                        tim = time.time()
                         self.graphCut(self.img2)
+                        tim2 = time.time()
+                        new_record = [time.time()-tim]
+                        self.df_throughput.loc[len(self.df_throughput)] = new_record
+                        self.df_throughput.to_csv(self.output_throughput, index=False)
                     except:
                         print("ERROR_IN_GCUTINIT")
                         import traceback
@@ -438,7 +419,12 @@ class BladeCapture():
             # Visualize Buffer
             self.img = img.copy()
             try:
+                tim = time.time()
                 self.graphCut(img)
+                tim2 = time.time()
+                new_record = [time.time()-tim]
+                self.df_throughput.loc[len(self.df_throughput)] = new_record
+                self.df_throughput.to_csv(self.output_throughput, index=False)
             except:
                 print("ERROR_IN_UPDATE")
                 import traceback

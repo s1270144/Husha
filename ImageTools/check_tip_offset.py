@@ -4,11 +4,11 @@ import os
 from tqdm import tqdm
 
 # 入力ディレクトリとファイルパス
-base_dir = "/home/iplslam/Husha/test/original/case01/cam1"
+base_dir = "/home/iplslam/Husha/test/original/case02_1/cam1"
 csv_path = os.path.join(base_dir, "cam1.csv")
 images_dir = os.path.join(base_dir, "blade_images")
 output_dir = os.path.join(base_dir, "blade_images_with_points") 
-output_csv_path = os.path.join(base_dir, "processed_points.csv")  # 保存するCSVファイルのパス
+output_csv_path = os.path.join(base_dir, "processed_points_whole.csv")  # 保存するCSVファイルのパス
 
 # 出力ディレクトリを作成
 os.makedirs(output_dir, exist_ok=True)
@@ -55,7 +55,7 @@ for idx, row in tqdm(df.iterrows(), total=len(df), desc="Processing images", uni
     color = (0, 0, 255)  # BGR形式（赤色）
     radius = 5  # 半径
     thickness = -1  # 塗りつぶし
-    cv2.circle(img, (tip_x, tip_y), radius, color, thickness)
+    # cv2.circle(img, (tip_x, tip_y), radius, color, thickness)
     cv2.rectangle(img, (rectangle_x1, rectangle_y1), (rectangle_x2, rectangle_y2), (255, 0, 0), 2)
     
     # 描画した画像を保存
